@@ -89,21 +89,21 @@ class PersonalizedSpaceDevice:
             self.state['target_temp'] = 24.0
             self.state['music_status'] = 'PLAYING'
             self.state['genre'] = 'Lo-Fi Focus Beats'
-            print('==> [策略执行] 已切换至【专注办公模式】：高亮度冷光，轻柔专注音乐。')
+            print('==> [策略执行] 已切换至【专注办公模式】：高亮度冷光，温度调至24℃。')
         elif mode == 'Cinema':
             self.state['brightness'] = 15
             self.state['color_temp'] = 2700  # 暖黄微光
             self.state['target_temp'] = 25.0
             self.state['music_status'] = 'PLAYING'
             self.state['genre'] = 'Cinematic Epic'
-            print('==> [策略执行] 已切换至【影音观影模式】：低照度暖光，沉浸式音效。')
+            print('==> [策略执行] 已切换至【影音观影模式】：低照度暖光，温度调至25℃。')
         elif mode == 'Leisure':
             self.state['brightness'] = 60
             self.state['color_temp'] = 3500  # 柔和自然光
             self.state['target_temp'] = 26.0
             self.state['music_status'] = 'PLAYING'
             self.state['genre'] = 'Jazz & Bossa Nova'
-            print('==> [策略执行] 已切换至【轻松休闲模式】：柔和光照，爵士放松音乐。')
+            print('==> [策略执行] 已切换至【轻松休闲模式】：柔和光照，温度调至26℃。')
         else:
             self.active_mode = 'Normal'
             self.state['brightness'] = 80
@@ -113,10 +113,18 @@ class PersonalizedSpaceDevice:
             print('==> [策略执行] 已恢复【标准模式】。')
 
     def generate_telemetry_data(self):
-        """模拟环境轻微波动并组装上报报文"""
-        self.state['indoor_temp'] = round(self.state['indoor_temp'] + random.uniform(-0.05, 0.05), 2)
+        """模拟环境温度平滑向空调设定目标温度靠拢，并加入自然波动"""
+        target_temp = self.state.get('target_temp', 26.0)
+        current_temp = self.state['indoor_temp']
+
+        # 让室内温度以一定速率平滑向目标设定温度逼近（模拟空调控温效果）
+        new_temp = current_temp + (target_temp - current_temp) * 0.3 + random.uniform(-0.04, 0.04)
+        self.state['indoor_temp'] = round(new_temp, 2)
+
+        # 湿度也伴随轻微自然波动
         self.state['indoor_humidity'] = round(
-            max(35.0, min(75.0, self.state['indoor_humidity'] + random.uniform(-0.3, 0.3))), 1)
+            max(35.0, min(75.0, self.state['indoor_humidity'] + random.uniform(-0.3, 0.3))), 1
+        )
 
         return {
             "device_id": self.device_id,
@@ -139,7 +147,7 @@ class PersonalizedSpaceDevice:
                 payload = json.dumps(data)
                 self.client.publish(config.TOPIC_TELEMETRY, payload, qos=1)
                 print(
-                    f'[已上报状态] 模式: {data["active_mode"]} | 照明: {data["states"]["brightness"]}% | 空调: {data["states"]["target_temp"]}℃')
+                    f'[已上报状态] 模式: {data["active_mode"]} | 照明: {data["states"]["brightness"]}% | 室温: {data["states"]["indoor_temp"]}℃ (目标:{data["states"]["target_temp"]}℃)')
                 time.sleep(5)
         except KeyboardInterrupt:
             print('[SensorDevice] 正在停止智能空间设备...')
