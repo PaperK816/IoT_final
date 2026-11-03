@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个性化空间助手 - 智能物联网监控大屏</title>
+    <!-- 引入 Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- 引入 Chart.js 用于实时折线图 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-light: #faf5ed;
+            --card-light: #ffffff;
+            --text-light: #2c3e50;
+            --border-light: #e6dfd3;
+            
+            --bg-dark: #171b21;
+            --card-dark: #21262d;
+            --text-dark: #e1e4e8;
+            --border-dark: #30363d;
+        }
+
+        body.light {
+            background-color: var(--bg-light);
+            color: var(--text-light);
+        }
+
+        body.dark {
+            background-color: var(--bg-dark);
+            color: var(--text-dark);
+        }
+
+        .theme-card {
+            transition: all 0.3s ease;
+        }
+
+        body.light .theme-card {
+            background-color: var(--card-light);
+            border: 1px solid var(--border-light);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        body.dark .theme-card {
+            background-color: var(--card-dark);
+            border: 1px solid var(--border-dark);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="light min-h-screen font-sans antialiased transition-colors duration-300">
+
+    <!-- 顶部导航栏 -->
+    <header class="theme-card border-b sticky top-0 z-50 backdrop-blur-md bg-opacity-90">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-teal-600 rounded-xl text-white shadow-md flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight">个性化空间助手与智能物联网平台</h1>
+                    <p class="text-xs opacity-70">Personalized Space Assistant IoT Dashboard</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <!-- 连接状态指示器 -->
+                <div id="connection-status" class="flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" id="status-dot"></span>
+                    <span id="status-text">正在连接后端 API...</span>
+                </div>
+
+                <!-- 日夜模式切换按钮 -->
+                <button onclick="toggleTheme()" class="p-2 rounded-xl theme-card hover:opacity-80 transition cursor-pointer flex items-center justify-center" title="切换日夜模式">
+                    <svg id="theme-icon" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主体内容区域 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- 空间核心设备状态卡片网格 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- 智能照明卡片 -->
+            <div class="theme-card rounded-2xl p-6 relative overflow-hidden border-t-4 border-t-amber-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-mono opacity-60 uppercase">smart_lighting</span>
+                        <h3 class="text-lg font-bold mt-0.5">智能照明系统</h3>
+                    </div>
+                    <div id="badge-light" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400">运行中</div>
+                </div>
+                <div class="mt-6 space-y-3">
+                    <div>
+                        <p class="text-xs opacity-70">照明亮度 / 色温</p>
+                        <div class="flex items-baseline space-x-2 mt-1">
+                            <span class="text-3xl font-extrabold tracking-tight" id="val-brightness">--</span>
+                            <span class="text-lg font-semibold opacity-60">%</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between text-xs pt-3 border-t border-gray-200 dark:border-gray-700 opacity-80">
+                        <span>色温设定: <strong id="val-colortemp">--</strong> K</span>
+                        <span>开关状态: <strong id="val-lightpower">--</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 智能空调卡片 -->
+            <div class="theme-card rounded-2xl p-6 relative overflow-hidden border-t-4 border-t-cyan-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-mono uppercase opacity-60">smart_ac</span>
+                        <h3 class="text-lg font-bold mt-0.5">温控空调系统</h3>
+                    </div>
+                    <div id="badge-ac" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400">运行中</div>
+                </div>
+                <div class="mt-6 space-y-3">
+                    <div>
+                        <p class="text-xs opacity-70">设定目标温度</p>
+                        <div class="flex items-baseline space-x-2 mt-1">
+                            <span class="text-3xl font-extrabold tracking-tight" id="val-temp">--</span>
+                            <span class="text-lg font-semibold opacity-60">℃</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between text-xs pt-3 border-t border-gray-200 dark:border-gray-700 opacity-80">
+                        <span>空调模式: <strong id="val-acmode">--</strong></span>
+                        <span>室内湿度: <strong id="val-humidity">--</strong> %</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 背景音乐与娱乐卡片 -->
+            <div class="theme-card rounded-2xl p-6 relative overflow-hidden border-t-4 border-t-purple-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span class="text-xs font-mono uppercase opacity-60">smart_audio</span>
+                        <h3 class="text-lg font-bold mt-0.5">沉浸式背景音乐</h3>
+                    </div>
+                    <div id="badge-music" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-950/50 dark:text-purple-400">播放中</div>
+                </div>
+                <div class="mt-6 space-y-3">
+                    <div>
+                        <p class="text-xs opacity-70">当前播放风格</p>
+                        <div class="flex items-baseline space-x-2 mt-1">
+                            <span class="text-xl font-extrabold tracking-tight truncate" id="val-genre">--</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-between text-xs pt-3 border-t border-gray-200 dark:border-gray-700 opacity-80">
+                        <span>播放状态: <strong id="val-musicstatus">--</strong></span>
+                        <span>音量大小: <strong id="val-volume">--</strong> %</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 远程调度模式与系统日志交互区 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- 个性化偏好模式快速切换 -->
+            <div class="theme-card rounded-2xl p-6 flex flex-col justify-between space-y-6">
+                <div>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                        <h2 class="font-semibold text-base">空间个性化偏好模式联动调度</h2>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="switchMode('Focus')" class="p-3 text-left rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100 transition cursor-pointer">
+                            <h4 class="text-xs font-bold text-blue-600 dark:text-blue-400">💻 专注办公模式</h4>
+                            <p class="text-[10px] opacity-70 mt-0.5">高亮冷光 · 24℃ · 专注白噪音</p>
+                        </button>
+                        <button onclick="switchMode('Cinema')" class="p-3 text-left rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20 hover:bg-purple-100 transition cursor-pointer">
+                            <h4 class="text-xs font-bold text-purple-600 dark:text-purple-400">🎬 影音观影模式</h4>
+                            <p class="text-[10px] opacity-70 mt-0.5">低照暖光 · 25℃ · 沉浸音效</p>
+                        </button>
+                        <button onclick="switchMode('Leisure')" class="p-3 text-left rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-100 transition cursor-pointer">
+                            <h4 class="text-xs font-bold text-emerald-600 dark:text-emerald-400">☕ 轻松休闲模式</h4>
+                            <p class="text-[10px] opacity-70 mt-0.5">柔和光照 · 26℃ · 爵士乐放松</p>
+                        </button>
+                        <button onclick="switchMode('Normal')" class="p-3 text-left rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 hover:bg-gray-100 transition cursor-pointer">
+                            <h4 class="text-xs font-bold">🏠 标准默认模式</h4>
+                            <p class="text-[10px] opacity-70 mt-0.5">标准状态 · 暂停娱乐</p>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-semibold opacity-80">系统控制与 MQTT 联动日志</span>
+                        <button onclick="clearLogs()" class="text-[10px] opacity-60 hover:opacity-100 underline cursor-pointer">清空</button>
+                    </div>
+                    <div id="log-container" class="bg-gray-900 text-teal-400 font-mono text-[11px] rounded-xl p-3 h-24 overflow-y-auto space-y-1">
+                        <div class="opacity-50">[System] 个性化空间助手前端大屏已就绪。</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 空间综合状态与统计看板 -->
+            <div class="theme-card rounded-2xl p-6 flex flex-col justify-between space-y-6">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                            <h2 class="font-semibold text-base">空间环境与运行概览</h2>
+                        </div>
+                        <span class="text-xs opacity-60" id="stat-count">累计采集: 0 帧</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-4 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <p class="text-xs font-medium opacity-70">当前激活偏好模式</p>
+                            <p class="text-lg font-extrabold mt-1 text-teal-600 dark:text-teal-400 truncate" id="stat-active-mode">--</p>
+                        </div>
+                        <div class="p-4 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <p class="text-xs font-medium opacity-70">当前空间主人</p>
+                            <p class="text-lg font-extrabold mt-1 text-purple-600 dark:text-purple-400" id="stat-current-user">--</p>
+                        </div>
+                        <div class="p-4 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <p class="text-xs font-medium opacity-70">室内实时温度</p>
+                            <p class="text-xl font-extrabold mt-1 text-cyan-600 dark:text-cyan-400" id="stat-indoor-temp">-- ℃</p>
+                        </div>
+                        <div class="p-4 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <p class="text-xs font-medium opacity-70">环境光照强度</p>
+                            <p class="text-xl font-extrabold mt-1 text-amber-600 dark:text-amber-400" id="stat-ambient-light">-- Lux</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 实时环境与亮度趋势折线图区 -->
+        <div class="theme-card rounded-2xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-2">
+                    <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                    <h2 class="font-semibold text-base">空间环境指标实时动态趋势 (温度 / 湿度 / 亮度)</h2>
+                </div>
+                <span class="text-xs opacity-60" id="last-update-time">最后更新: 从未接收</span>
+            </div>
+            <div class="h-80 relative">
+                <canvas id="realtimeChart"></canvas>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- JavaScript 交互逻辑 -->
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            const icon = document.getElementById('theme-icon');
+            if (body.classList.contains('light')) {
+                body.classList.replace('light', 'dark');
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>';
+            } else {
+                body.classList.replace('dark', 'light');
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+            }
+            updateChartTheme();
+        }
+
+        function addLog(message) {
+            const container = document.getElementById('log-container');
+            const timeStr = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.innerHTML = `<span class="opacity-40">[${timeStr}]</span> ${message}`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById('log-container').innerHTML = '<div class="opacity-50">[System] 日志已清空。</div>';
+        }
+
+        const ctx = document.getElementById('realtimeChart').getContext('2d');
+        const maxDataPoints = 15;
+        let totalSampleCount = 0;
+
+        const chartData = {
+            labels: [],
+            datasets: [
+                {
+                    label: '室内温度 (℃)',
+                    data: [],
+                    borderColor: '#06b6d4',
+                    backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3
+                },
+                {
+                    label: '室内湿度 (%)',
+                    data: [],
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3
+                },
+                {
+                    label: '照明亮度 (%)',
+                    data: [],
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3
+                }
+            ]
+        };
+
+        const realtimeChart = new Chart(ctx, {
+            type: 'line',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 300 },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(128, 128, 128, 0.1)' },
+                        ticks: { color: 'rgba(128, 128, 128, 0.7)', font: { size: 10 } }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        grid: { color: 'rgba(128, 128, 128, 0.1)' }
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: 'inherit' } }
+                }
+            }
+        });
+
+        function updateChartTheme() {
+            const isDark = document.body.classList.contains('dark');
+            realtimeChart.options.plugins.legend.labels.color = isDark ? '#e1e4e8' : '#2c3e50';
+            realtimeChart.update();
+        }
+
+        async function fetchSpaceData() {
+            try {
+                const response = await fetch('http://localhost:8000/api/space/latest');
+                if (!response.ok) throw new Error('网络请求失败');
+                const result = await response.json();
+
+                const statusDot = document.getElementById('status-dot');
+                const statusText = document.getElementById('status-text');
+                const statusBadge = document.getElementById('connection-status');
+
+                if (result && result.status === "success" && result.data) {
+                    const data = result.data;
+                    const nowSec = Math.floor(Date.now() / 1000);
+                    const age = nowSec - (data.timestamp || nowSec);
+
+                    if (age > 15) {
+                        statusDot.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
+                        statusText.innerText = `⚠️ 设备离线告警 (${age}s无响应)`;
+                        statusBadge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800";
+                    } else {
+                        statusDot.className = "w-2 h-2 rounded-full bg-emerald-500";
+                        statusText.innerText = "后端与设备连接正常";
+                        // 修正后的正确绿底样式：
+                        statusBadge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800";
+                    }
+
+                    const st = data.states || {};
+                    document.getElementById('val-brightness').innerText = st.brightness ?? '--';
+                    document.getElementById('val-colortemp').innerText = st.color_temp ?? '--';
+                    document.getElementById('val-lightpower').innerText = st.light_power ?? '--';
+
+                    document.getElementById('val-temp').innerText = st.target_temp ?? '--';
+                    document.getElementById('val-acmode').innerText = st.ac_mode ?? '--';
+                    document.getElementById('val-humidity').innerText = st.indoor_humidity ?? '--';
+
+                    document.getElementById('val-genre').innerText = st.genre ?? '--';
+                    document.getElementById('val-musicstatus').innerText = st.music_status ?? '--';
+                    document.getElementById('val-volume').innerText = st.volume ?? '--';
+
+                    document.getElementById('stat-active-mode').innerText = data.active_mode ?? '--';
+                    document.getElementById('stat-current-user').innerText = data.current_user ?? '--';
+                    document.getElementById('stat-indoor-temp').innerText = `${st.indoor_temp ?? '--'} ℃`;
+                    document.getElementById('stat-ambient-light').innerText = `${st.ambient_light ?? '--'} Lux`;
+
+                    totalSampleCount++;
+                    const timeStr = new Date((data.timestamp || Date.now() / 1000) * 1000).toLocaleTimeString();
+                    document.getElementById('stat-count').innerText = `累计采集: ${totalSampleCount} 帧`;
+                    document.getElementById('last-update-time').innerText = `最后更新: ${timeStr}`;
+
+                    if (chartData.labels.length >= maxDataPoints) {
+                        chartData.labels.shift();
+                        chartData.datasets[0].data.shift();
+                        chartData.datasets[1].data.shift();
+                        chartData.datasets[2].data.shift();
+                    }
+                    chartData.labels.push(timeStr);
+                    chartData.datasets[0].data.push(st.indoor_temp || 25);
+                    chartData.datasets[1].data.push(st.indoor_humidity || 50);
+                    chartData.datasets[2].data.push(st.brightness || 80);
+                    realtimeChart.update();
+
+                } else {
+                    statusDot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse";
+                    statusText.innerText = "等待设备初始化数据...";
+                }
+            } catch (error) {
+                console.error('轮询后端出错:', error);
+                const statusDot = document.getElementById('status-dot');
+                const statusText = document.getElementById('status-text');
+                const statusBadge = document.getElementById('connection-status');
+                statusDot.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
+                statusText.innerText = "后端服务未响应";
+                statusBadge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800";
+            }
+        }
+
+        async function switchMode(modeName) {
+            try {
+                addLog(`正在下发空间模式调度 [set_mode] -> ${modeName}...`);
+                const response = await fetch('http://localhost:8000/api/control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'set_mode', value: modeName })
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    addLog(`模式切换指令下发成功: 激活 [${modeName}] 模式`);
+                } else {
+                    addLog(`指令下发失败: ${result.detail || '未知错误'}`);
+                }
+            } catch (error) {
+                addLog(`请求后端 API 出错: ${error.message}`);
+            }
+        }
+
+        window.addEventListener('load', () => {
+            fetchSpaceData();
+            setInterval(fetchSpaceData, 3000);
+        });
+    </script>
+</body>
+</html>
